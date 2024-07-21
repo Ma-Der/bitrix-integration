@@ -1,14 +1,13 @@
 "use server";
 
-import {
-  getAccessToken,
-  reauthorizeBasedOnRefreshToken,
-} from "../../../../lib/bitrixAuth";
+import { reauthorizeBasedOnRefreshToken } from "../../../../lib/bitrixAuth";
+import { getAccessToken } from "../../../../lib/bitrixAuth";
 
 export async function GET() {
   const clientUrl = process.env.CLIENT_URL;
   const accessTokenData = await getAccessToken();
   let accessToken: string = "";
+
   try {
     if (accessTokenData.message === "ok") {
       accessToken = accessTokenData.accessToken;
@@ -32,21 +31,54 @@ export async function GET() {
       }
     }
 
-    const body = {
-      filter: {
-        EMAIL: "maciej.derewianski@usprawniaczefirm.pl",
+    const bodyToDeleteFieldInUserfield = {
+      id: "256",
+      fields: {
+        LIST: [
+          {
+            ID: "58",
+            DEL: "Y",
+          },
+        ],
       },
     };
 
-    const result = await fetch(`${clientUrl}/rest/user.get.json`, {
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        "Content-Type": "application/json",
+    const bodyToCreateFieldInUserfield = {
+      id: "256",
+      fields: {
+        LIST: [
+          {
+            VALUE: "some value",
+          },
+        ],
       },
-      method: "POST",
-      body: JSON.stringify(body),
-    });
+    };
 
+    const result = await fetch(
+      `${clientUrl}/rest/crm.deal.userfield.update.json`,
+      {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          "Content-Type": "application/json",
+        },
+        method: "POST",
+        body: JSON.stringify(bodyToCreateFieldInUserfield),
+      }
+    );
+
+    if (result.status === 401) {
+      const reauthResult = await reauthorizeBasedOnRefreshToken();
+
+      if (reauthResult?.message === "Ok.") {
+      }
+      return Response.json(
+        JSON.parse(
+          JSON.stringify({
+            message: "Token error, we are doing everything that we can. :)",
+          })
+        )
+      );
+    }
     if (!result.body)
       return Response.json({
         message: "Something went wrong with authorization !!",
@@ -60,7 +92,7 @@ export async function GET() {
       });
 
     const bitrixResult = JSON.parse(Buffer.from(readed.value).toString());
-
+    console.log("bitrixResult: ", bitrixResult);
     return Response.json(bitrixResult);
   } catch (err) {
     const error = err as Error;

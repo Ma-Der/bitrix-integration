@@ -1,13 +1,16 @@
+"use server"
+import { prisma } from "../../../../../lib/prisma";
 import { NextRequest } from "next/server";
 import { BitrixAuthorization } from "@/types/apiTypes";
 
 export async function GET(request: NextRequest) {
   const clientId = process.env.CLIENT_ID;
   const clientSecret = process.env.CLIENT_SECRET;
+  const bitrixAuthName = process.env.BITRIX_AUTH_NAME as string;
 
   try {
     const code = request.nextUrl.searchParams.get("code");
-console.log("code: ", code)
+
     if (!code) return Response.redirect('http://localhost:3000', 307);
       const authResult = await fetch(
         `https://oauth.bitrix.info/oauth/token/?grant_type=authorization_code&client_id=${clientId}&client_secret=${clientSecret}&code=${code}`,
@@ -23,9 +26,23 @@ console.log("code: ", code)
       const authorizationBitrix: BitrixAuthorization = JSON.parse(Buffer.from(readed.value).toString());
       const accessToken = authorizationBitrix.access_token;
       const refreshToken = authorizationBitrix.refresh_token;
-      console.log(authorizationBitrix)
-      console.log(accessToken)
-      console.log(refreshToken)
+      const expires = authorizationBitrix.expires;
+
+      const bitrixAuthData = await prisma.bitrixAuth.findUnique({where: { name: bitrixAuthName }});
+
+      if(bitrixAuthData) {
+        return Response.redirect('http://localhost:3000', 307);
+      }
+      
+      await prisma.bitrixAuth.create({
+        data: {
+          accessToken,
+          refreshToken,
+          expires,
+          name: bitrixAuthName,
+        }
+      })
+
     return Response.redirect('http://localhost:3000', 307);
   }
   catch(err: unknown) {
