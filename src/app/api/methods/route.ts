@@ -1,31 +1,43 @@
-"use server"
+"use server";
+
+import { getBitrixToken } from "../../../../lib/bitrixAuth";
 
 export async function GET() {
-    try {
-        const result = await fetch('https://mhr.bitrix24.pl/rest/methods.json', {
-            headers: {
-                Authorization: 'Bearer a6639b66006f2fd5006c5e630000000c000007f2f784b81d9d7552bd1fd06ff36eb7b2',
-                "Content-Type": 'application/json'
-            }
-        })
-    console.log(result)
-        if(!result.body) return Response.json({message: 'Something went wrong with authorization !!'});
-        
-        const readed = await result.body.getReader().read();
-      
-        if(!readed.value) return Response.json({message: 'Something went wrong with authorization !!'});
-    
-        const bitrixResult = JSON.parse(Buffer.from(readed.value).toString());
-    
-        return Response.json(bitrixResult)
+  const clientUrl = process.env.CLIENT_URL;
+  const tokenData = await getBitrixToken();
+  try {
+    if (tokenData.message === "reauth" || tokenData.data === null) {
+      return Response.json({ message: "reauth", data: null });
     }
-    catch(err) {
-        const error = err as Error;
-        console.log(error)
 
-        return Response.error();
-    }
-    
+    const result = await fetch(`${clientUrl}/rest/methods.json`, {
+      headers: {
+        Authorization: `Bearer ${tokenData.data}`,
+        "Content-Type": "application/json",
+      },
+    });
 
+    if (!result.body)
+      return Response.json({
+        message: "Something went wrong with authorization !!",
+        data: null,
+      });
 
+    const readed = await result.body.getReader().read();
+
+    if (!readed.value)
+      return Response.json({
+        message: "Something went wrong with authorization !!",
+        data: null,
+      });
+
+    const bitrixResult = JSON.parse(Buffer.from(readed.value).toString());
+
+    return Response.json({ message: "ok", data: bitrixResult });
+  } catch (err) {
+    const error = err as Error;
+    console.log(error);
+
+    return Response.json({ message: "error", data: error });
+  }
 }
