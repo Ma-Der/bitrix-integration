@@ -1,8 +1,12 @@
+"use server";
 import {
   createBitrixAuth,
   deleteBitrixAuth,
   getBitrixAuthData,
 } from "../db/handlers/bitrixAuth";
+
+const clientId = process.env.CLIENT_ID;
+const clientSecret = process.env.CLIENT_SECRET;
 
 export const getAccessToken = async () => {
   const bitrixAuthData = await getBitrixAuthData();
@@ -33,9 +37,6 @@ export const getRefreshToken = async () => {
 };
 
 export async function reauthorizeBasedOnRefreshToken() {
-  const clientId = process.env.CLIENT_ID;
-  const clientSecret = process.env.CLIENT_SECRET;
-
   try {
     const bitrixAuthData = await getBitrixAuthData();
 
@@ -80,3 +81,30 @@ export async function reauthorizeBasedOnRefreshToken() {
     return { message: `There was an error: ${error.message}`, accessToken: "" };
   }
 }
+
+export const getBitrixToken = async () => {
+  const accessTokenData = await getAccessToken();
+  let accessToken = "";
+
+  if (accessTokenData.message === "ok") {
+    accessToken = accessTokenData.accessToken;
+  }
+
+  if (accessTokenData.message === "no auth") {
+    return { message: "reauth", data: null };
+  }
+
+  if (accessTokenData.message === "expired") {
+    const reauthResult = await reauthorizeBasedOnRefreshToken();
+
+    if (reauthResult.message === "ok") {
+      accessToken = reauthResult.accessToken;
+    }
+
+    if (reauthResult.message !== "ok") {
+      return { message: "reauth", data: null };
+    }
+  }
+
+  return { message: "ok", data: accessToken };
+};

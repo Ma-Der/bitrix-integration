@@ -1,34 +1,14 @@
 "use server";
 
-import { reauthorizeBasedOnRefreshToken } from "../../../../lib/bitrixAuth";
-import { getAccessToken } from "../../../../lib/bitrixAuth";
+import { getBitrixToken } from "../../../../lib/bitrixAuth";
 
 export async function GET() {
   const clientUrl = process.env.CLIENT_URL;
-  const accessTokenData = await getAccessToken();
-  let accessToken: string = "";
-
   try {
-    if (accessTokenData.message === "ok") {
-      accessToken = accessTokenData.accessToken;
-    }
+    const accessTokenData = await getBitrixToken();
 
-    if (accessTokenData.message === "no auth") {
-      //TODO: redirects change to returning for example object {message: 'reauth'} and on the frontend this triggers new window with Bitrix authorization
-      return Response.redirect("http://localhost:3000/api/oauth", 307);
-    }
-
-    if (accessTokenData.message === "expired") {
-      const reauthResult = await reauthorizeBasedOnRefreshToken();
-
-      if (reauthResult.message === "ok") {
-        accessToken = reauthResult.accessToken;
-      }
-
-      if (reauthResult.message !== "ok") {
-        //TODO: redirects change to returning for example object {message: 'reauth'} and on the frontend this triggers new window with Bitrix authorization
-        return Response.redirect("http://localhost:3000/api/oauth", 307);
-      }
+    if (accessTokenData.message === "reauth" || accessTokenData.data === null) {
+      return Response.json({ message: "reauth", data: null });
     }
 
     const bodyToDeleteFieldInUserfield = {
@@ -58,7 +38,7 @@ export async function GET() {
       `${clientUrl}/rest/crm.deal.userfield.update.json`,
       {
         headers: {
-          Authorization: `Bearer ${accessToken}`,
+          Authorization: `Bearer ${accessTokenData.data}`,
           "Content-Type": "application/json",
         },
         method: "POST",
@@ -66,22 +46,10 @@ export async function GET() {
       }
     );
 
-    if (result.status === 401) {
-      const reauthResult = await reauthorizeBasedOnRefreshToken();
-
-      if (reauthResult?.message === "Ok.") {
-      }
-      return Response.json(
-        JSON.parse(
-          JSON.stringify({
-            message: "Token error, we are doing everything that we can. :)",
-          })
-        )
-      );
-    }
     if (!result.body)
       return Response.json({
         message: "Something went wrong with authorization !!",
+        data: null,
       });
 
     const readed = await result.body.getReader().read();
@@ -89,15 +57,16 @@ export async function GET() {
     if (!readed.value)
       return Response.json({
         message: "Something went wrong with authorization !!",
+        data: null,
       });
 
     const bitrixResult = JSON.parse(Buffer.from(readed.value).toString());
-    console.log("bitrixResult: ", bitrixResult);
-    return Response.json(bitrixResult);
+
+    return Response.json({ message: "ok", data: bitrixResult });
   } catch (err) {
     const error = err as Error;
     console.log("Error: ", error);
 
-    return Response.json(JSON.stringify(error));
+    return Response.json({ message: "error", data: error });
   }
 }
