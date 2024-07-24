@@ -53,21 +53,7 @@ export async function reauthorizeBasedOnRefreshToken() {
       }
     );
 
-    if (!result.body)
-      return {
-        message: "Something went wrong with reauthorization !!",
-        accessToken: "",
-      };
-
-    const readed = await result.body.getReader().read();
-
-    if (!readed.value)
-      return {
-        message: "Something went wrong with reauthorization !!",
-        accessToken: "",
-      };
-
-    const bitrixResult = JSON.parse(Buffer.from(readed.value).toString());
+    const bitrixResult = await result.json();
 
     await deleteBitrixAuth();
 

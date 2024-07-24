@@ -46,21 +46,7 @@ export async function GET() {
       }
     );
 
-    if (!result.body)
-      return Response.json({
-        message: "Something went wrong with authorization !!",
-        data: null,
-      });
-
-    const readed = await result.body.getReader().read();
-
-    if (!readed.value)
-      return Response.json({
-        message: "Something went wrong with authorization !!",
-        data: null,
-      });
-
-    const bitrixResult = JSON.parse(Buffer.from(readed.value).toString());
+    const bitrixResult = await result.json();
 
     return Response.json({ message: "ok", data: bitrixResult });
   } catch (err) {

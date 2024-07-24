@@ -1,8 +1,9 @@
 "use server";
 
+import { NextRequest } from "next/server";
 import { getBitrixToken } from "../../../../lib/bitrixAuth";
 
-export async function GET() {
+export async function POST(req: NextRequest) {
   const clientUrl = process.env.CLIENT_URL;
   try {
     const accessTokenData = await getBitrixToken();
@@ -10,10 +11,10 @@ export async function GET() {
     if (accessTokenData.message === "reauth" || accessTokenData.data === null) {
       return Response.json({ message: "reauth", data: null });
     }
-
+    const reqBody = await req.json();
     const body = {
       filter: {
-        EMAIL: "maciej.derewianski@usprawniaczefirm.pl",
+        EMAIL: reqBody.email,
       },
     };
 
@@ -26,23 +27,9 @@ export async function GET() {
       body: JSON.stringify(body),
     });
 
-    if (!result.body)
-      return Response.json({
-        message: "Something went wrong with authorization !!",
-        data: null,
-      });
+    const bitrixResult = await result.json();
 
-    const readed = await result.body.getReader().read();
-
-    if (!readed.value)
-      return Response.json({
-        message: "Something went wrong with authorization !!",
-        data: null,
-      });
-
-    const bitrixResult = JSON.parse(Buffer.from(readed.value).toString());
-
-    return Response.json({ message: "ok", data: bitrixResult });
+    return Response.json({ message: "ok", data: bitrixResult.result });
   } catch (err) {
     const error = err as Error;
     console.log("Error: ", error);

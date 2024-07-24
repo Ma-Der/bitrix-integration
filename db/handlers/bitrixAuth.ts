@@ -22,7 +22,6 @@ export const deleteBitrixAuth = async () => {
 };
 
 export const createBitrixAuth = async (bitrixData: BitrixAuthData) => {
-    console.log(bitrixData)
   await prisma.bitrixAuth.create({
     data: {
       accessToken: bitrixData.access_token,
