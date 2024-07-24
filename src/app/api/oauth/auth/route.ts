@@ -2,6 +2,7 @@
 import { prisma } from "../../../../../lib/prisma";
 import { NextRequest } from "next/server";
 import { BitrixAuthorization } from "@/types/apiTypes";
+import { redirect } from "next/navigation";
 
 export async function GET(request: NextRequest) {
   const clientId = process.env.CLIENT_ID;
@@ -11,7 +12,7 @@ export async function GET(request: NextRequest) {
   try {
     const code = request.nextUrl.searchParams.get("code");
 
-    if (!code) return Response.redirect("http://localhost:3000", 307);
+    if (!code) redirect(request.nextUrl.origin);
     const authResult = await fetch(
       `https://oauth.bitrix.info/oauth/token/?grant_type=authorization_code&client_id=${clientId}&client_secret=${clientSecret}&code=${code}`,
       { method: "POST" }
@@ -27,7 +28,7 @@ export async function GET(request: NextRequest) {
     });
 
     if (bitrixAuthData) {
-      return Response.redirect("http://localhost:3000", 307);
+      return redirect(request.nextUrl.origin);
     }
 
     await prisma.bitrixAuth.create({
@@ -39,7 +40,7 @@ export async function GET(request: NextRequest) {
       },
     });
 
-    return Response.redirect("http://localhost:3000", 307);
+    return redirect(request.nextUrl.origin);
   } catch (err: unknown) {
     const error = err as Error;
     return Response.json({ message: error.message, status: 401 });
